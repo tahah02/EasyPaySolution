@@ -13,7 +13,7 @@ namespace EasyPay.WebAPI.Controllers
 
         public AccountController(ITransactionManager manager)
         {
-            _manager = manager; // Ab ye line error nahi degi
+            _manager = manager; 
         }
 
         // 1. Check Balance API
@@ -21,7 +21,7 @@ namespace EasyPay.WebAPI.Controllers
         public IActionResult GetBalance(string userId)
         {
             var response = _manager.GetBalance(userId);
-            return Ok(response); // Poora object return karo
+            return Ok(response); 
         }
 
         [HttpPost("transfer")]

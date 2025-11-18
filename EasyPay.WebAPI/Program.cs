@@ -1,18 +1,26 @@
-using EasyPay.Data;
-using EasyPay.Logic;
+using EasyPay.Data.GeneratedModels; // <-- Ye EasyPayDbContext ke liye hai
+using EasyPay.Logic;                // <-- Ye TransactionManager ke liye hai
+using EasyPay.WebAPI.Middlewares;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using System.Transactions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// 1. Controllers aur Validation add karna
 builder.Services.AddControllers();
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// 2. Database Connection (Ab hum Scaffolded Context use kar rahe hain)
+builder.Services.AddDbContext<EasyPayDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Logic Layer Jodna (Dependency Injection)
-builder.Services.AddScoped<ITransactionManager, TransactionManager>();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// 3. Logic Layer (Dependency Injection)
+builder.Services.AddScoped<ITransactionManager, EasyPay.Logic.TransactionManager>();
+
+// 4. Swagger Setup (Testing ke liye)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -26,6 +34,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// 5. Jasoos Camera ON karna (Logging Middleware)
+app.UseMiddleware<LoggingMiddleware>();
 
 app.UseAuthorization();
 
