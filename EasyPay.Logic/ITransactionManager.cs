@@ -14,5 +14,6 @@ namespace EasyPay.Logic
         ApiResponse<string> AddTransaction(PaymentRequestDto request);
         ApiResponse<decimal> GetBalance(string userId);
         ApiResponse<string> TransferMoney(TransferRequestDto request);
+        ApiResponse<string> SetPassword(SetPasswordDto request);
     }
 }

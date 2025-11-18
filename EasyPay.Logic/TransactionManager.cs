@@ -147,5 +147,39 @@ namespace EasyPay.Logic
                 Data = $"Amount {request.Amount} transferred"
             };
         }
+        public ApiResponse<string> SetPassword(SetPasswordDto request)
+        {
+            string logId = "PWD-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+
+            // 1. User dhoondo
+            var user = _context.UserAccounts.FirstOrDefault(u => u.UserId == request.UserId);
+
+            if (user == null)
+            {
+                return new ApiResponse<string>
+                {
+                    LogId = logId,
+                    IsSuccess = false,
+                    Message = "User nahi mila!",
+                    Data = null
+                };
+            }
+
+            // 2. Password ko Hash karo (Kachumar nikalo)
+            string hashedPassword = SecurityHelper.HashPassword(request.NewPassword);
+
+            // 3. Database mein Hash save karo
+            user.PasswordHash = hashedPassword;
+
+            _context.SaveChanges();
+
+            return new ApiResponse<string>
+            {
+                LogId = logId,
+                IsSuccess = true,
+                Message = "Password successfully set hua!",
+                Data = "Password Secured & Hashed"
+            };
+        }
     }
 }

@@ -31,5 +31,13 @@ namespace EasyPay.WebAPI.Controllers
             if (!response.IsSuccess) return BadRequest(response);
             return Ok(response);
         }
+
+        [HttpPost("set-password")]
+        public IActionResult SetPassword([FromBody] SetPasswordDto request)
+        {
+            var response = _manager.SetPassword(request);
+            if (!response.IsSuccess) return BadRequest(response);
+            return Ok(response);
+        }
     }
 }
