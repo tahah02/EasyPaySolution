@@ -12,4 +12,6 @@ public partial class UserAccount
     public string AccountTitle { get; set; } = null!;
 
     public decimal CurrentBalance { get; set; }
+
+    public string? PasswordHash { get; set; }
 }

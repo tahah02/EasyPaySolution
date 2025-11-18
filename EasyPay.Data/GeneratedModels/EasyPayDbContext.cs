@@ -19,7 +19,7 @@ public partial class EasyPayDbContext : DbContext
 
     public virtual DbSet<BankBranch> BankBranches { get; set; }
 
-    public virtual DbSet<FinalAuditTable> FinalAuditTables { get; set; }
+    public virtual DbSet<EasyPayLog> EasyPayLogs { get; set; }
 
     public virtual DbSet<FullAuditReport> FullAuditReports { get; set; }
 
@@ -58,13 +58,18 @@ public partial class EasyPayDbContext : DbContext
                 .IsUnicode(false);
         });
 
-        modelBuilder.Entity<FinalAuditTable>(entity =>
+        modelBuilder.Entity<EasyPayLog>(entity =>
         {
             entity
                 .HasNoKey()
-                .ToTable("FinalAuditTable");
+                .ToTable("EasyPayLog");
 
+            entity.Property(e => e.Action).HasMaxLength(100);
             entity.Property(e => e.ClosingBalance).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Controller).HasMaxLength(100);
+            entity.Property(e => e.Method).HasMaxLength(10);
+            entity.Property(e => e.RequestTime).HasColumnType("datetime");
+            entity.Property(e => e.TransactionId).HasColumnName("TransactionID");
             entity.Property(e => e.TransferredAmount).HasColumnType("decimal(18, 2)");
         });
 
