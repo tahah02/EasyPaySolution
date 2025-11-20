@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyPay Web Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            width: 350px;
+            margin: 15px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 25px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+            button:hover {
+                background-color: #0056b3;
+            }
+
+        #status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Layout */
+        #app-section {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="card">
+        <h2>EasyPay Login</h2>
+        <input type="text" id="login-user-id" placeholder="User ID (e.g., Ayesha)">
+        <input type="password" id="login-password" placeholder="Password (e.g., 12345)">
+        <button onclick="handleLogin()">Login & Get Token</button>
+        <div id="login-status" class="error"></div>
+    </div>
+
+    <div id="app-section" class="card">
+        <h2>Secured Transfer</h2>
+        <p>Logged in as: <strong id="logged-in-user">Guest</strong></p>
+        <hr>
+        <input type="text" id="transfer-to-user" placeholder="Receiver ID (e.g., Bilal)">
+        <input type="number" id="transfer-amount" placeholder="Amount (PKR)">
+        <button onclick="handleTransfer()">Execute Transfer</button>
+        <div id="transfer-status" class="error"></div>
+    </div>
+    <div style="text-align: right;">
+        <button onclick="handleLogout()" style="background-color: #dc3545; width: auto; padding: 5px 10px; font-size: 12px;">Logout 🚪</button>
+    </div>
+
+    <script>
+        const API_BASE = "https://localhost:7046"; // Zaroor apna PORT number check kar lein!
+
+        // Page load hote hi token aur user ko check karo
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        // Helper function for showing status messages
+        function updateStatus(elementId, message, isSuccess = false) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = message;
+            el.className = isSuccess ? 'success' : 'error';
+        }
+
+        // Naya Function: Page load hote hi session check karna
+        function initializeApp() {
+            const token = localStorage.getItem('userToken');
+            const userId = localStorage.getItem('loggedInUserId');
+
+            if (token && userId) {
+                // Agar token aur userId mile, toh seedha app section khol do
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                document.getElementById('logged-in-user').innerText = userId;
+            }
+        }
+
+        // 1. LOGIN LOGIC
+        async function handleLogin() {
+            const userId = document.getElementById('login-user-id').value;
+            const password = document.getElementById('login-password').value;
+
+            updateStatus('login-status', 'Processing...', false);
+
+            try {
+                const loginData = { userId: userId, password: password };
+
+                const response = await fetch(`${API_BASE}/api/Auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.isSuccess) {
+                    // FIX: Token ko Local Storage mein save karna
+                    localStorage.setItem('userToken', result.Data);
+                    localStorage.setItem('loggedInUserId', userId);
+
+                    initializeApp(); // Screen switch karo
+                    updateStatus('login-status', 'Login Successful!', true);
+
+                } else {
+                    // FAILURE: Error dikhao
+                    const msg = result.Message || "Login Failed. Check credentials.";
+                    updateStatus('login-status', msg, false);
+                }
+
+            } catch (error) {
+                updateStatus('login-status', 'Network Error! API is not running.', false);
+                console.error("Fetch error:", error);
+            }
+        }
+
+        // 2. TRANSFER LOGIC
+        async function handleTransfer() {
+            const token = localStorage.getItem('userToken');
+            const loggedInUser = localStorage.getItem('loggedInUserId');
+
+            // Step 1: Check Token Locally
+            if (!token) {
+                updateStatus('transfer-status', 'Session Expired. Please Login again.', false);
+                // Token nahi hai, to login screen dikhao
+                document.getElementById('login-section').style.display = 'block';
+                document.getElementById('app-section').style.display = 'none';
+                return;
+            }
+
+            const toUser = document.getElementById('transfer-to-user').value;
+            const amount = document.getElementById('transfer-amount').value;
+
+            // Validation
+            if (!toUser || amount <= 0) {
+                updateStatus('transfer-status', 'Invalid data. Enter receiver and amount > 0.', false);
+                return;
+            }
+            else if (response.status === 401) {
+                // 👇 YE 2 LINES ADD KAREIN
+                localStorage.removeItem('userToken'); // Kharab token delete karo
+                localStorage.removeItem('loggedInUserId');
+
+                updateStatus('transfer-status', '❌ Token Expired! Page Refresh karke Login karein.', false);
+
+            updateStatus('transfer-status', 'Processing Transfer...', false);
+
+            const transferData = {
+                fromUser: loggedInUser,
+                toUser: toUser,
+                amount: parseFloat(amount),
+                secretPin: "1234"
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/Account/transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(transferData)
+                });
+
+                // --- 👇 FIX: Pehle Status Check Karo, Phir JSON Parse Karo ---
+
+                if (response.status === 401) {
+                    // Agar 401 aaya to JSON parse mat karo, seedha error dikhao
+                    localStorage.removeItem('userToken'); // Ghalat token hata do
+                    updateStatus('transfer-status', '❌ Token Expired! Please refresh and login again.', false);
+                    return;
+                }
+
+                if (!response.ok) {
+                    // Agar 400 ya 500 aaya
+                    const errorText = await response.text(); // Text padho (JSON fail hone se bachega)
+                    updateStatus('transfer-status', `❌ Error: ${response.status} - ${errorText}`, false);
+                    return;
+                }
+
+                // Agar sab theek hai (200 OK), tab hi JSON parse karo
+                const result = await response.json();
+
+                if (result.isSuccess) {
+                    const successMessage = result.message + " | Log ID: " + result.logId.substring(4, 12);
+                    updateStatus('transfer-status', '✅ ' + successMessage, true);
+                } else {
+                    updateStatus('transfer-status', '❌ ' + result.message, false);
+                }
+
+            } catch (error) {
+                updateStatus('transfer-status', 'Network Error! Is Backend Running?', false);
+                console.error("Transfer fetch error:", error);
+            }
+        }
+        //Logout function
+        function handleLogout() {
+            // Token hatao
+            localStorage.removeItem('userToken');
+            localStorage.removeItem('loggedInUserId');
+
+            // Page reload karo taake Login screen wapas aaye
+            location.reload();
+        }
+    </script>

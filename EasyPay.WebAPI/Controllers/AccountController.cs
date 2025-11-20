@@ -1,7 +1,9 @@
 ﻿using EasyPay.Data.Dtos;
 using EasyPay.Logic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+
 
 namespace EasyPay.WebAPI.Controllers
 {
@@ -23,20 +25,27 @@ namespace EasyPay.WebAPI.Controllers
             var response = _manager.GetBalance(userId);
             return Ok(response); 
         }
-
-        [HttpPost("transfer")]
-        public IActionResult Transfer([FromBody] TransferRequestDto request)
-        {
-            var response = _manager.TransferMoney(request);
-            if (!response.IsSuccess) return BadRequest(response);
-            return Ok(response);
-        }
-
+        // Set Password API
         [HttpPost("set-password")]
         public IActionResult SetPassword([FromBody] SetPasswordDto request)
         {
             var response = _manager.SetPassword(request);
             if (!response.IsSuccess) return BadRequest(response);
+            return Ok(response);
+        }
+        // 2. Transfer Money API
+        [Authorize] 
+        [HttpPost("transfer")]
+        public IActionResult Transfer([FromBody] TransferRequestDto request) 
+        {
+            var response = _manager.TransferMoney(request);
+            if (!response.IsSuccess)
+            {
+                // 400 Bad Request wapas bhejo aur error details bhi de do
+                return BadRequest(response);
+            }
+
+            // 3. Success (200 OK)
             return Ok(response);
         }
     }

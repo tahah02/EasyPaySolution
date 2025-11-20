@@ -1,4 +1,4 @@
-﻿using EasyPay.Data.GeneratedModels; 
+﻿using EasyPay.Data.GeneratedModels.Logs;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.IO;
@@ -16,8 +16,7 @@ namespace EasyPay.WebAPI.Middlewares
         {
             _next = next;
         }
-
-        public async Task Invoke(HttpContext context, EasyPayDbContext dbContext)
+        public async Task Invoke(HttpContext context, EasyPayLogsDbContext logsDbContext )
         {
             // 1. Request Read
             context.Request.EnableBuffering();
@@ -25,6 +24,14 @@ namespace EasyPay.WebAPI.Middlewares
             context.Request.Body.Position = 0;
 
             string userId = ExtractUserId(requestBody);
+
+            string channelName = "Default"; // Agar user koi header na bheje to 'Default' rakhein ge
+
+            // Check karein ke user ne 'X-Channel-Name' header bheja hai ya nahi
+            if (context.Request.Headers.ContainsKey("X-Channel-Name"))
+            {
+                channelName = context.Request.Headers["X-Channel-Name"].ToString();
+            }
 
             //Header to JSON
             var headerDictionary = new Dictionary<string, string>();
@@ -61,8 +68,9 @@ namespace EasyPay.WebAPI.Middlewares
             context.Response.Body.Position = 0;
 
             // 4. Save to DB
-            var log = new ApiLog
+            var log = new EasyPay.Data.GeneratedModels.Logs.ApiLog
             {
+                ChannelName = channelName,
                 RequestTime = DateTime.Now,
                 UserId = userId,
                 RequestBody = requestBody,
@@ -74,8 +82,8 @@ namespace EasyPay.WebAPI.Middlewares
                 Method = method,
             };
 
-            dbContext.ApiLogs.Add(log);
-            await dbContext.SaveChangesAsync();
+            logsDbContext.ApiLogs.Add(log);
+            await logsDbContext.SaveChangesAsync();
 
             await responseBody.CopyToAsync(originalBodyStream);
         }

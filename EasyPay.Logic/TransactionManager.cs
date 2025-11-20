@@ -4,16 +4,26 @@ using EasyPay.Data.GeneratedModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using EasyPay.Data.GeneratedModels.Core;
+using PaymentRecord = EasyPay.Data.GeneratedModels.Core.PaymentRecord;
 
 namespace EasyPay.Logic
 {
     public class TransactionManager : ITransactionManager
     {
-        private readonly EasyPayDbContext _context;
+        private readonly EasyPayCoreDbContext _context; // Ab core context use hoga
+        private readonly IConfiguration _config; // Configuration settings ke liye
 
-        public TransactionManager(EasyPayDbContext context)
+        // Constructor Injection
+        public TransactionManager(EasyPayCoreDbContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
         }
 
         // Helper to generate ID
@@ -21,6 +31,7 @@ namespace EasyPay.Logic
         {
             return "TRX-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
         }
+
 
         // 1. GET HISTORY
         public ApiResponse<List<UserReceiptDto>> GetUserHistory(string userId)
@@ -179,6 +190,51 @@ namespace EasyPay.Logic
                 IsSuccess = true,
                 Message = "Password successfully set hua!",
                 Data = "Password Secured & Hashed"
+            };
+        }
+        // 5. LOGIN
+        public ApiResponse<string> Login(LoginDto request)
+        {
+            string logId = "LOGIN-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+
+            // 1. User Dhoondo
+            var user = _context.UserAccounts.FirstOrDefault(u => u.UserId == request.UserId);
+
+            if (user == null)
+                return new ApiResponse<string> { LogId = logId, IsSuccess = false, Message = "User nahi mila", Data = null };
+
+            // 2. Password Check Karo (Hash match)
+            string inputHash = SecurityHelper.HashPassword(request.Password);
+
+            if (user.PasswordHash != inputHash)
+                return new ApiResponse<string> { LogId = logId, IsSuccess = false, Message = "Ghalat Password!", Data = null };
+
+            // 3. TOKEN GENERATION (Asli Kaam)
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_config["JwtSettings:Key"]); // Secret Key uthayi
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                new Claim("id", user.UserId), // Token ke andar User ka naam chupa diya
+                new Claim("role", "User")
+            }),
+                Expires = DateTime.UtcNow.AddMinutes(30), // 30 Minute baad expire hoga
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                Issuer = _config["JwtSettings:Issuer"],
+                Audience = _config["JwtSettings:Audience"]
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            string finalToken = tokenHandler.WriteToken(token);
+
+            return new ApiResponse<string>
+            {
+                LogId = logId,
+                IsSuccess = true,
+                Message = "Login Successful",
+                Data = finalToken // Ye Token user ko milega
             };
         }
     }
