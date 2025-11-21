@@ -1,5 +1,6 @@
 ﻿using EasyPay.Data.Dtos;
 using EasyPay.Logic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,7 +24,8 @@ namespace EasyPay.WebAPI.Controllers
             var response = _manager.GetBalance(userId);
             return Ok(response); 
         }
-
+        // Transfer
+        [Authorize]
         [HttpPost("transfer")]
         public IActionResult Transfer([FromBody] TransferRequestDto request)
         {
