@@ -4,16 +4,60 @@ using EasyPay.Data.GeneratedModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Configuration; 
+using Microsoft.IdentityModel.Tokens;     
+using System.IdentityModel.Tokens.Jwt;    
+using System.Security.Claims;             
+using System.Text;
 
 namespace EasyPay.Logic
 {
     public class TransactionManager : ITransactionManager
     {
         private readonly EasyPayDbContext _context;
-
-        public TransactionManager(EasyPayDbContext context)
+        private readonly IConfiguration _config;
+        public TransactionManager(EasyPayDbContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
+        }
+
+        // Login Method
+        public ApiResponse<string> Login(LoginDto request)
+        {
+            string logId = "LOGIN-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+
+            // A. User Check
+            var user = _context.UserAccounts.FirstOrDefault(u => u.UserId == request.UserId);
+            if (user == null) return new ApiResponse<string> { LogId = logId, IsSuccess = false, Message = "User Not Found" };
+
+            // B. Password Check (Hash match)
+            string inputHash = SecurityHelper.HashPassword(request.Password);
+            if (user.PasswordHash != inputHash) return new ApiResponse<string> { LogId = logId, IsSuccess = false, Message = "Wrong Password" };
+
+            // C. Token Generation (Secret Key use karke)
+            var key = Encoding.ASCII.GetBytes(_config["JwtSettings:Key"]);
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.UserId) }),
+                Expires = DateTime.UtcNow.AddMinutes(30),
+                Issuer = _config["JwtSettings:Issuer"],
+                Audience = _config["JwtSettings:Audience"],
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            string finalToken = tokenHandler.WriteToken(token);
+
+            return new ApiResponse<string>
+            {
+                LogId = logId,
+                IsSuccess = true,
+                Message = "Login Successful",
+                Data = finalToken
+            };
         }
 
         // Helper to generate ID
@@ -151,7 +195,7 @@ namespace EasyPay.Logic
         {
             string logId = "PWD-" + Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
 
-            // 1. User dhoondo
+            // 1. Find User 
             var user = _context.UserAccounts.FirstOrDefault(u => u.UserId == request.UserId);
 
             if (user == null)
@@ -160,15 +204,15 @@ namespace EasyPay.Logic
                 {
                     LogId = logId,
                     IsSuccess = false,
-                    Message = "User nahi mila!",
+                    Message = "User not Found",
                     Data = null
                 };
             }
 
-            // 2. Password ko Hash karo (Kachumar nikalo)
+            // 2. Password Hashing
             string hashedPassword = SecurityHelper.HashPassword(request.NewPassword);
 
-            // 3. Database mein Hash save karo
+            // 3. Save Hash In DB
             user.PasswordHash = hashedPassword;
 
             _context.SaveChanges();
