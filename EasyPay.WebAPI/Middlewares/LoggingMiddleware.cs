@@ -4,7 +4,9 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks; 
+using System.Threading.Tasks;
+using EasyPay.Data.GeneratedModels.Logs; 
+
 
 namespace EasyPay.WebAPI.Middlewares
 {
@@ -17,7 +19,7 @@ namespace EasyPay.WebAPI.Middlewares
             _next = next;
         }
 
-        public async Task Invoke(HttpContext context, EasyPayDbContext dbContext)
+        public async Task Invoke(HttpContext context, EasyPayLogsDbContext logsdbContext)
         {
             // 1. Request Read
             context.Request.EnableBuffering();
@@ -61,7 +63,7 @@ namespace EasyPay.WebAPI.Middlewares
             context.Response.Body.Position = 0;
 
             // 4. Save to DB
-            var log = new ApiLog
+            var log = new EasyPay.Data.GeneratedModels.Logs.ApiLog
             {
                 RequestTime = DateTime.Now,
                 UserId = userId,
@@ -74,8 +76,8 @@ namespace EasyPay.WebAPI.Middlewares
                 Method = method,
             };
 
-            dbContext.ApiLogs.Add(log);
-            await dbContext.SaveChangesAsync();
+            logsdbContext.ApiLogs.Add(log);
+            await logsdbContext.SaveChangesAsync();
 
             await responseBody.CopyToAsync(originalBodyStream);
         }
